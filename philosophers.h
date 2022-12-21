@@ -6,7 +6,7 @@
 /*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/12/13 08:59:58 by aboncine          #+#    #+#             */
-/*   Updated: 2022/12/19 17:41:24 by aboncine         ###   ########.fr       */
+/*   Updated: 2022/12/21 18:20:08 by aboncine         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,15 +22,18 @@ typedef struct s_struct	t_struct;
 
 typedef struct s_philo {
 int	phi_id;
+time_t	start_eat;
+//time_t	philo_die;
 pthread_t	thr_arr;
 t_struct	*box;
 }	t_philo;
 
 typedef struct s_struct {
 int	philo;
-int	die;
-int	eat;
-int	sleep;
+time_t	init_time;
+time_t	die;
+time_t	eat;
+time_t	sleep;
 int	times;
 int	i;
 pthread_mutex_t	*mut_arr;

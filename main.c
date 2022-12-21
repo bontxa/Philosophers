@@ -6,11 +6,22 @@
 /*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/12/13 08:58:51 by aboncine          #+#    #+#             */
-/*   Updated: 2022/12/19 17:42:19 by aboncine         ###   ########.fr       */
+/*   Updated: 2022/12/21 18:20:05 by aboncine         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philosophers.h"
+
+void	free_for_all(t_struct *box)
+{
+	int	i;
+
+	i = 0;
+	while (i < box->philo)
+		free(box->philos[i++]);
+	free(box->philos);
+	free(box->mut_arr);
+}
 
 void	*my_malloc(int size)
 {
@@ -20,6 +31,14 @@ void	*my_malloc(int size)
 	if(!ptr)
 		return (NULL);
 	return (ptr);
+}
+
+time_t	get_time(void)
+{
+	struct timeval		tv;
+
+	gettimeofday(&tv, NULL);
+	return ((tv.tv_sec * 1000) + (tv.tv_usec / 1000));
 }
 
 int	ft_atoi(const char *nptr)
@@ -41,27 +60,65 @@ int	ft_atoi(const char *nptr)
 	return (nbr);
 }
 
-void	*take_fork(void *arg)
+void	is_sleeping_and_thinking(int phi_id, time_t sleep_time, time_t init_time)
 {
-	t_philo	*philo;
+	printf("%ld\t%d\tis sleeping\n", get_time() - init_time, phi_id);
+	usleep(sleep_time * 1000);
+	printf("%ld\t%d\tis thinking\n", get_time() - init_time, phi_id);
+}
 
-	philo = (t_philo *)arg;
-	pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id]);
+void	lock_even(t_philo *philo)
+{
 	if (philo->phi_id == philo->box->philo - 1)
 		pthread_mutex_lock(&philo->box->mut_arr[0]);
 	else
 		pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id + 1]);
-	struct timeval	time;
-	gettimeofday(&time, NULL);
-	printf("%ld\t%d\thas taken a fork\n", time.tv_sec * 1000000 + time.tv_usec, philo->phi_id);
-	printf("%ld\t%d\thas taken a fork\n", time.tv_sec * 1000000 + time.tv_usec, philo->phi_id);
-	printf("%ld\t%d\tis eating\n", time.tv_sec * 1000000 + time.tv_usec, philo->phi_id);
-	sleep (1);
-	pthread_mutex_unlock(&philo->box->mut_arr[philo->phi_id]);
+	printf("%ld\t%d\thas taken right fork\n", get_time() - philo->box->init_time, philo->phi_id);
+	pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id]);
+	printf("%ld\t%d\thas taken left fork\n", get_time() - philo->box->init_time, philo->phi_id);
+}
+
+void	lock_odd(t_philo *philo)
+{
+	pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id]);
+	printf("%ld\t%d\thas taken left fork\n", get_time() - philo->box->init_time, philo->phi_id);
 	if (philo->phi_id == philo->box->philo - 1)
-		pthread_mutex_unlock(&philo->box->mut_arr[0]);
+		pthread_mutex_lock(&philo->box->mut_arr[0]);
 	else
-		pthread_mutex_unlock(&philo->box->mut_arr[philo->phi_id + 1]);
+		pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id + 1]);
+	printf("%ld\t%d\thas taken right fork\n", get_time() - philo->box->init_time, philo->phi_id);
+}
+
+void	*is_eating(void *arg)
+{
+	int i;
+	t_philo	*philo;
+
+	i = 0;
+	philo = (t_philo *)arg;
+	while(i < philo->box->times)
+	{
+		if (philo->phi_id % 2)
+			lock_odd(philo);
+		else
+			lock_even(philo);
+		if ((get_time() - philo->start_eat) > philo->box->die)
+		{
+			printf("%ld\t%d\thas died\n", get_time() - philo->box->init_time, philo->phi_id);
+			exit (-1);
+		}
+		philo->start_eat = get_time();
+		usleep(philo->box->eat * 1000);
+		i++;
+		printf("%ld\t%d\tis eating\n", get_time() - philo->box->init_time, philo->phi_id);
+		pthread_mutex_unlock(&philo->box->mut_arr[philo->phi_id]);
+		if (philo->phi_id == philo->box->philo - 1)
+			pthread_mutex_unlock(&philo->box->mut_arr[0]);
+		else
+			pthread_mutex_unlock(&philo->box->mut_arr[philo->phi_id + 1]);
+		printf("%d\tha mollato le forchette\n", philo->phi_id);
+		is_sleeping_and_thinking(philo->phi_id, philo->box->sleep, philo->box->init_time);
+	}
 	return (NULL);
 }
 
@@ -79,6 +136,9 @@ void	box_init(t_struct *box, char **argv)
 	box->sleep = ft_atoi(argv[4]);
 	box->times = ft_atoi(argv[5]);
 	box->i = 0;
+	box->philos = (t_philo **) my_malloc(sizeof(t_philo *) * box->philo);
+	box->mut_arr = (pthread_mutex_t *) my_malloc(sizeof(pthread_mutex_t) * box->philo);
+	box->init_time = get_time();
 }
 
 static void	check_argv(int argc, char **argv)
@@ -111,20 +171,22 @@ int main(int argc, char **argv)
 		print_error();
 	check_argv(argc, argv);
 	t_struct	*box;
+
 	box = (t_struct *) my_malloc(sizeof(t_struct));
 	box_init(box, argv);
-	box->philos = (t_philo **) my_malloc(sizeof(t_philo *) * box->philo);
-	box->mut_arr = (pthread_mutex_t *) my_malloc(sizeof(pthread_mutex_t) * box->philo);
 	while (box->i < box->philo)
 	{
 		box->philos[box->i] = (t_philo *) my_malloc(sizeof(t_philo));
 		box->philos[box->i]->phi_id = box->i;
 		box->philos[box->i]->box = box;
+		box->philos[box->i]->start_eat = box->init_time;
 		pthread_mutex_init(&box->mut_arr[box->i], NULL);
-		pthread_create(&box->philos[box->i]->thr_arr, NULL, &take_fork, (void *)box->philos[box->i]);
+		pthread_create(&box->philos[box->i]->thr_arr, NULL, &is_eating, (void *)box->philos[box->i]);
 		box->i++;
 	}
 	box->i = 0;
 	while (box->i < box->philo)
 		pthread_join(box->philos[box->i++]->thr_arr, NULL);
+	free_for_all(box);
+	free(box);
 }
