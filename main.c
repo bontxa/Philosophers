@@ -6,7 +6,7 @@
 /*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/12/13 08:58:51 by aboncine          #+#    #+#             */
-/*   Updated: 2022/12/21 18:20:05 by aboncine         ###   ########.fr       */
+/*   Updated: 2022/12/22 16:09:03 by aboncine         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,16 +35,25 @@ void	*my_malloc(int size)
 
 time_t	get_time(void)
 {
-	struct timeval		tv;
+	struct timeval	tv;
 
 	gettimeofday(&tv, NULL);
 	return ((tv.tv_sec * 1000) + (tv.tv_usec / 1000));
 }
 
+void	append_time(time_t time)
+{
+	time_t	tmp;
+
+	tmp = get_time() + time;
+	while (get_time() < tmp)
+	usleep(50);
+}
+
 int	ft_atoi(const char *nptr)
 {
-	int		i;
-	int		nbr;
+	int	i;
+	int	nbr;
 
 	i = 0;
 	nbr = 0;
@@ -62,9 +71,9 @@ int	ft_atoi(const char *nptr)
 
 void	is_sleeping_and_thinking(int phi_id, time_t sleep_time, time_t init_time)
 {
-	printf("%ld\t%d\tis sleeping\n", get_time() - init_time, phi_id);
-	usleep(sleep_time * 1000);
-	printf("%ld\t%d\tis thinking\n", get_time() - init_time, phi_id);
+	printf("%ld\t%d\tis sleeping\n", get_time() - init_time, phi_id + 1);
+	append_time(sleep_time);
+	printf("%ld\t%d\tis thinking\n", get_time() - init_time, phi_id + 1);
 }
 
 void	lock_even(t_philo *philo)
@@ -73,20 +82,20 @@ void	lock_even(t_philo *philo)
 		pthread_mutex_lock(&philo->box->mut_arr[0]);
 	else
 		pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id + 1]);
-	printf("%ld\t%d\thas taken right fork\n", get_time() - philo->box->init_time, philo->phi_id);
+	printf("%ld\t%d\thas taken right fork\n", get_time() - philo->box->init_time, philo->phi_id + 1);
 	pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id]);
-	printf("%ld\t%d\thas taken left fork\n", get_time() - philo->box->init_time, philo->phi_id);
+	printf("%ld\t%d\thas taken left fork\n", get_time() - philo->box->init_time, philo->phi_id + 1);
 }
 
 void	lock_odd(t_philo *philo)
 {
 	pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id]);
-	printf("%ld\t%d\thas taken left fork\n", get_time() - philo->box->init_time, philo->phi_id);
+	printf("%ld\t%d\thas taken left fork\n", get_time() - philo->box->init_time, philo->phi_id + 1);
 	if (philo->phi_id == philo->box->philo - 1)
 		pthread_mutex_lock(&philo->box->mut_arr[0]);
 	else
 		pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id + 1]);
-	printf("%ld\t%d\thas taken right fork\n", get_time() - philo->box->init_time, philo->phi_id);
+	printf("%ld\t%d\thas taken right fork\n", get_time() - philo->box->init_time, philo->phi_id + 1);
 }
 
 void	*is_eating(void *arg)
@@ -102,22 +111,61 @@ void	*is_eating(void *arg)
 			lock_odd(philo);
 		else
 			lock_even(philo);
-		if ((get_time() - philo->start_eat) > philo->box->die)
-		{
-			printf("%ld\t%d\thas died\n", get_time() - philo->box->init_time, philo->phi_id);
-			exit (-1);
-		}
 		philo->start_eat = get_time();
-		usleep(philo->box->eat * 1000);
+		printf("%ld\t%d\tis eating\n", get_time() - philo->box->init_time, philo->phi_id + 1);
+		philo->eat_count++;
+		append_time(philo->box->eat);
 		i++;
-		printf("%ld\t%d\tis eating\n", get_time() - philo->box->init_time, philo->phi_id);
 		pthread_mutex_unlock(&philo->box->mut_arr[philo->phi_id]);
 		if (philo->phi_id == philo->box->philo - 1)
 			pthread_mutex_unlock(&philo->box->mut_arr[0]);
 		else
 			pthread_mutex_unlock(&philo->box->mut_arr[philo->phi_id + 1]);
-		printf("%d\tha mollato le forchette\n", philo->phi_id);
 		is_sleeping_and_thinking(philo->phi_id, philo->box->sleep, philo->box->init_time);
+	}
+	return (NULL);
+}
+
+void	check_eat(t_struct *box)
+{
+	int			count;
+	int			i;
+
+	count = 0;
+	i = 0;
+	while (i < box->philo)
+	{
+		if (box->philos[i]->eat_count == box->times)
+			count++;
+		i++;
+	}
+	if (count == box->philo)
+		exit (-1);
+}
+
+void	*die_check(void *arg)
+{
+	t_struct	*box;
+	int			i;
+	int			loop;
+
+
+	box = (t_struct *) arg;
+	i = 0;
+	loop = 0;
+	while(loop == 0)
+	{
+		while (i < box->philo)
+		{
+			check_eat(box);
+			if ((get_time() - box->philos[i]->start_eat) > box->die)
+			{
+				printf("%ld %d died\n", get_time() - box->init_time, box->philos[i]->phi_id + 1);
+				exit (-1);
+			}
+			i++;
+		}
+		i = 0;
 	}
 	return (NULL);
 }
@@ -135,7 +183,6 @@ void	box_init(t_struct *box, char **argv)
 	box->eat = ft_atoi(argv[3]);
 	box->sleep = ft_atoi(argv[4]);
 	box->times = ft_atoi(argv[5]);
-	box->i = 0;
 	box->philos = (t_philo **) my_malloc(sizeof(t_philo *) * box->philo);
 	box->mut_arr = (pthread_mutex_t *) my_malloc(sizeof(pthread_mutex_t) * box->philo);
 	box->init_time = get_time();
@@ -171,22 +218,28 @@ int main(int argc, char **argv)
 		print_error();
 	check_argv(argc, argv);
 	t_struct	*box;
+	pthread_t	die;
+	int	i;
 
 	box = (t_struct *) my_malloc(sizeof(t_struct));
+	i = 0;
 	box_init(box, argv);
-	while (box->i < box->philo)
+	while (i < box->philo)
 	{
-		box->philos[box->i] = (t_philo *) my_malloc(sizeof(t_philo));
-		box->philos[box->i]->phi_id = box->i;
-		box->philos[box->i]->box = box;
-		box->philos[box->i]->start_eat = box->init_time;
-		pthread_mutex_init(&box->mut_arr[box->i], NULL);
-		pthread_create(&box->philos[box->i]->thr_arr, NULL, &is_eating, (void *)box->philos[box->i]);
-		box->i++;
+		box->philos[i] = (t_philo *) my_malloc(sizeof(t_philo));
+		box->philos[i]->phi_id = i;
+		box->philos[i]->box = box;
+		box->philos[i]->start_eat = box->init_time;
+		box->philos[i]->eat_count = 0;
+		pthread_mutex_init(&box->mut_arr[i], NULL);
+		pthread_create(&box->philos[i]->thr_arr, NULL, &is_eating, box->philos[i]);
+		i++;
 	}
-	box->i = 0;
-	while (box->i < box->philo)
-		pthread_join(box->philos[box->i++]->thr_arr, NULL);
+	i = 0;
+	pthread_create(&die, NULL, &die_check, box);
+	while (i < box->philo)
+		pthread_join(box->philos[i++]->thr_arr, NULL);
+	pthread_join(die, NULL);
 	free_for_all(box);
 	free(box);
 }
