@@ -1,0 +1,8 @@
+#objects
+*.o
+
+#tester
+*Tester
+
+#provv
+.nfs000000000a29034a00000565

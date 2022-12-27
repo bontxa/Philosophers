@@ -6,12 +6,12 @@
 #    By: aboncine <marvin@42.fr>                    +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2022/11/03 08:35:03 by aboncine          #+#    #+#              #
-#    Updated: 2022/12/14 08:23:09 by aboncine         ###   ########.fr        #
+#    Updated: 2022/12/27 16:22:22 by aboncine         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
-NAME = philosophers
-SRCS = main.c
+NAME = philo
+SRCS = main.c utils.c eating.c
 OBJS = $(SRCS:.c=.o)
 CC = gcc
 CFLAGS = -Wall -Wextra -Werror -pthread
