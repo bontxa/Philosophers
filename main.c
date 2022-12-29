@@ -6,7 +6,7 @@
 /*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/12/13 08:58:51 by aboncine          #+#    #+#             */
-/*   Updated: 2022/12/29 16:42:41 by aboncine         ###   ########.fr       */
+/*   Updated: 2022/12/29 17:37:27 by aboncine         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,7 +21,7 @@ int	check_eat(t_struct *box)
 	i = 0;
 	while (i < box->philo)
 	{
-		if (box->philos[i]->eat_count == box->times)
+		if (box->philos[i]->eat_count >= box->times)
 			count++;
 		i++;
 	}
