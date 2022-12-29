@@ -6,7 +6,7 @@
 /*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/12/27 15:56:58 by aboncine          #+#    #+#             */
-/*   Updated: 2022/12/27 17:02:18 by aboncine         ###   ########.fr       */
+/*   Updated: 2022/12/29 17:17:59 by aboncine         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,7 +28,7 @@ void	*my_malloc(int size)
 	void	*ptr;
 
 	ptr = malloc(size);
-	if(!ptr)
+	if (!ptr)
 		return (NULL);
 	return (ptr);
 }

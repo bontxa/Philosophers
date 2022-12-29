@@ -6,7 +6,7 @@
 /*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/12/13 08:58:51 by aboncine          #+#    #+#             */
-/*   Updated: 2022/12/27 17:02:24 by aboncine         ###   ########.fr       */
+/*   Updated: 2022/12/29 16:42:41 by aboncine         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,83 +30,75 @@ int	check_eat(t_struct *box)
 	return (1);
 }
 
-int	check_die(t_struct	*box)
+void	check_die(t_struct	*box)
 {
 	int			i;
-	int			loop;
 
-	i = 0;
-	loop = 0;
-	while(loop == 0)
+	while (box->all_ate == 0)
 	{
-		while (i < box->philo)
+		i = -1;
+		while (++i < box->philo && box->exit == 0)
 		{
-			if (box->argc == 6)
-			{
-				if (check_eat(box) == 0)
-					return (1);
-			}
+			pthread_mutex_lock(&box->died);
 			if ((get_time() - box->philos[i]->start_eat) > box->die)
 			{
-				printf("%ld %d died\n", DIED);
-				return (1);
+				write_all("died\n", box->philos[i]);
+				box->exit = 1;
 			}
-			i++;
+			pthread_mutex_unlock(&box->died);
+			usleep(100);
 		}
-		i = 0;
+		if (box->exit == 1)
+			break ;
+		if (box->argc == 6)
+		{
+			if (check_eat(box) == 0)
+				box->all_ate = 1;
+		}
 	}
-	return (0);
 }
 
-void	box_init(t_struct *box, int argc, char **argv)
-{
-	box->argc = argc;
-	if (box->argc == 6)
-		box->times = ft_atoi(argv[5]);
-	box->philo = ft_atoi(argv[1]);
-	box->die = ft_atoi(argv[2]);
-	box->eat = ft_atoi(argv[3]);
-	box->sleep = ft_atoi(argv[4]);
-	box->philos = (t_philo **) my_malloc(sizeof(t_philo *) * box->philo);
-	box->mut_arr = (pthread_mutex_t *) my_malloc(sizeof(pthread_mutex_t) * box->philo);
-	box->init_time = get_time();
-}
-
-int	check_argv(int argc, char **argv)
+void	check_and_exit(t_struct *box)
 {
 	int	i;
-	int	j;
 
-	i = 1;
-	j = 0;
-	while (i < argc)
+	i = -1;
+	check_die(box);
+	while (++i < box->philo)
 	{
-		if (argv[i][0] == '\0')
-			return (1);
-		if (argv[i][0] == '+' && argv[i][1] >= '0' && argv[i][1] <= '9')
-			j++;
-		while (argv[i][j])
-		{
-			if (argv[i][j] < '0' || argv[i][j] > '9')
-				return (1);
-			j++;
-		}
-		j = 0;
-		i++;
+		pthread_join(box->philos[i]->thr_arr, NULL);
+		pthread_mutex_destroy(&box->mut_arr[i]);
 	}
-	return (0);
+	pthread_mutex_destroy(&box->write);
+	pthread_mutex_destroy(&box->died);
+	free_for_all(box);
+	free(box);
 }
 
-int main(int argc, char **argv)
+int	first_check(int argc, char **argv)
 {
 	if (argc < 2 || argc > 6 || check_argv(argc, argv) == 1)
 	{
 		write(2, "Error\n", 6);
 		return (0);
 	}
-	t_struct	*box;
-	int	i;
+	if (ft_atoi(argv[1]) == 1)
+	{
+		printf("%d\t%d\t%s", 0, 1, "has taken a fork\n");
+		usleep(ft_atoi(argv[2]));
+		printf("%d\t%d\t%s", ft_atoi(argv[2]), 1, "died\n");
+		return (0);
+	}
+	return (1);
+}
 
+int	main(int argc, char **argv)
+{
+	t_struct	*box;
+	int			i;
+
+	if (first_check (argc, argv) == 0)
+		return (0);
 	box = (t_struct *) my_malloc(sizeof(t_struct));
 	i = 0;
 	box_init(box, argc, argv);
@@ -115,21 +107,15 @@ int main(int argc, char **argv)
 		box->philos[i] = (t_philo *) my_malloc(sizeof(t_philo));
 		box->philos[i]->phi_id = i;
 		box->philos[i]->box = box;
-		box->philos[i]->start_eat = box->init_time;
 		box->philos[i]->eat_count = 0;
-		pthread_mutex_init(&box->mut_arr[i], NULL);
-		pthread_create(&box->philos[i]->thr_arr, NULL, &is_eating, box->philos[i]);
+		if (pthread_mutex_init(&box->mut_arr[i], NULL))
+			return (-1);
+		if (pthread_create(&box->philos[i]->thr_arr, NULL,
+				&is_eating, box->philos[i]))
+			return (-1);
+		box->philos[i]->start_eat = get_time();
 		i++;
 	}
-	if (check_die(box) == 1)
-	{
-		free_for_all(box);
-		free(box);
-		return (0);
-	}
-	i = 0;
-	while (i < box->philo)
-		pthread_join(box->philos[i++]->thr_arr, NULL);
-	free_for_all(box);
-	free(box);
+	check_and_exit(box);
+	return (0);
 }
