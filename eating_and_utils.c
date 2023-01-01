@@ -6,7 +6,7 @@
 /*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/12/27 16:18:04 by aboncine          #+#    #+#             */
-/*   Updated: 2022/12/29 16:42:36 by aboncine         ###   ########.fr       */
+/*   Updated: 2022/12/30 16:31:00 by aboncine         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -37,16 +37,29 @@ int	check_argv(int argc, char **argv)
 	return (0);
 }
 
-void	write_all(char *str, t_philo *philo)
-{
-	pthread_mutex_lock(&philo->box->write);
-	if (philo->box->exit == 0)
-		printf("%ld\t%d\t%s", get_time() - philo->box->init_time,
-			philo->phi_id + 1, str);
-	pthread_mutex_unlock(&philo->box->write);
+static int	box_init2(t_struct *box)
+{	
+	int i;
+	
+	i = 0;
+	while (i < box->philo)
+	{
+		if (pthread_mutex_init(&box->mut_arr[i], NULL))
+			return (0);
+		if (box->philos[i] = (t_philo *) my_malloc(sizeof(t_philo)) == NULL)
+			return (0);
+		box->philos[i]->phi_id = i;
+		box->philos[i]->box = box;
+		box->philos[i]->eat_count = 0;
+		box->philos[i]->start_eat = 0;
+		box->philos[i]->left = i;
+		box->philos[i]->right = (i + 1) % box->philo;
+		i++;
+	}
+	return (1);
 }
 
-void	box_init(t_struct *box, int argc, char **argv)
+int	box_init(t_struct *box, int argc, char **argv)
 {
 	box->argc = argc;
 	if (box->argc == 6)
@@ -55,43 +68,42 @@ void	box_init(t_struct *box, int argc, char **argv)
 	box->die = ft_atoi(argv[2]);
 	box->eat = ft_atoi(argv[3]);
 	box->sleep = ft_atoi(argv[4]);
-	box->philos = (t_philo **) my_malloc(sizeof(t_philo *) * box->philo);
-	box->mut_arr = (pthread_mutex_t *)
-		my_malloc(sizeof(pthread_mutex_t) * box->philo);
+	if (box->philos = (t_philo **)
+		my_malloc(sizeof(t_philo *) * box->philo) == NULL)
+		return (0);
+	if (box->mut_arr = (pthread_mutex_t *)
+		my_malloc(sizeof(pthread_mutex_t) * box->philo) == NULL)
+		return (0);
 	box->init_time = get_time();
 	box->exit = 0;
 	box->all_ate = 0;
+	if (box_init2(box) == 0)
+		return (0);
 	if (pthread_mutex_init(&box->write, NULL))
-		return ;
-	if (pthread_mutex_init(&box->died, NULL))
-		return ;
+		return (0);
+	if (pthread_mutex_init(&box->eating, NULL))
+		return (0);
+	return (1);
 }
 
 static void	lock_forks_and_eat(t_philo *philo)
 {
-	pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id]);
+	pthread_mutex_lock(&philo->box->mut_arr[philo->left]);
 	write_all("has taken a fork\n", philo);
-	if (philo->phi_id == philo->box->philo - 1)
-	{
-		pthread_mutex_lock(&philo->box->mut_arr[0]);
-		write_all("has taken a fork\n", philo);
-	}
-	else
-	{
-		pthread_mutex_lock(&philo->box->mut_arr[philo->phi_id + 1]);
-		write_all("has taken a fork\n", philo);
-	}
-	pthread_mutex_lock(&(philo->box->died));
+	pthread_mutex_lock(&philo->box->mut_arr[philo->right]);
+	write_all("has taken a fork\n", philo);
 	write_all("is eating\n", philo);
+	pthread_mutex_lock(&philo->box->eating);
 	philo->start_eat = get_time();
-	pthread_mutex_unlock(&philo->box->died);
-	append_time(philo->box->eat);
 	philo->eat_count++;
+	pthread_mutex_unlock(&philo->box->eating);
+	append_time(philo->box->eat);
 }
 
 void	*is_eating(void *arg)
 {
 	t_philo	*philo;
+	int		temp;
 
 	philo = (t_philo *)arg;
 	if (philo->phi_id % 2)
@@ -99,13 +111,13 @@ void	*is_eating(void *arg)
 	while (!(philo->box->exit))
 	{
 		lock_forks_and_eat(philo);
-		pthread_mutex_unlock(&philo->box->mut_arr[philo->phi_id]);
-		if (philo->phi_id == philo->box->philo - 1)
-			pthread_mutex_unlock(&philo->box->mut_arr[0]);
-		else
-			pthread_mutex_unlock(&philo->box->mut_arr[philo->phi_id + 1]);
-		if (philo->box->all_ate)
-			break ;
+		pthread_mutex_unlock(&philo->box->mut_arr[philo->left]);
+		pthread_mutex_unlock(&philo->box->mut_arr[philo->right]);
+		pthread_mutex_lock(&philo->box->eating);
+		temp = philo->box->all_ate;
+		pthread_mutex_unlock(&philo->box->eating);
+		if (temp)
+			break;
 		write_all("is sleeping\n", philo);
 		append_time(philo->box->sleep);
 		write_all("is thinking\n", philo);
