@@ -1,8 +1,20 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   checks_and_utils.c                                 :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2023/01/02 14:53:42 by aboncine          #+#    #+#             */
+/*   Updated: 2023/01/02 15:01:33 by aboncine         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
 #include "philosophers.h"
 
 void	write_all(char *str, t_philo *philo)
 {
-	int temp;
+	int	temp;
 
 	pthread_mutex_lock(&philo->box->write);
 	pthread_mutex_lock(&philo->box->eating);
@@ -38,7 +50,7 @@ static int	check_eat(t_struct *box)
 
 static void	check_die2(t_struct *box, int i)
 {
-	time_t temp;
+	time_t	temp;
 
 	pthread_mutex_lock(&box->eating);
 	temp = (get_time() - box->philos[i]->start_eat);
@@ -56,7 +68,7 @@ static void	check_die2(t_struct *box, int i)
 static void	check_die(t_struct	*box)
 {
 	int			i;
-	
+
 	while (box->all_ate == 0)
 	{
 		i = -1;
@@ -76,7 +88,6 @@ static void	check_die(t_struct	*box)
 	}
 }
 
-
 void	check_and_exit(t_struct *box)
 {
 	int	i;
@@ -84,10 +95,10 @@ void	check_and_exit(t_struct *box)
 	i = -1;
 	check_die(box);
 	while (++i < box->philo)
-	{
 		pthread_join(box->philos[i]->thr_arr, NULL);
+	i = -1;
+	while (++i < box->philo)
 		pthread_mutex_destroy(&box->mut_arr[i]);
-	}
 	pthread_mutex_destroy(&box->write);
 	pthread_mutex_destroy(&box->eating);
 	free_for_all(box);

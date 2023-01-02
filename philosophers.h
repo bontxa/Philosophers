@@ -6,7 +6,7 @@
 /*   By: aboncine <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/12/13 08:59:58 by aboncine          #+#    #+#             */
-/*   Updated: 2022/12/30 15:15:11 by aboncine         ###   ########.fr       */
+/*   Updated: 2023/01/02 15:16:18 by aboncine         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -52,10 +52,13 @@ void	*my_malloc(int size);
 time_t	get_time(void);
 void	append_time(time_t time);
 int		ft_atoi(const char *nptr);
-void	*is_eating(void *arg);
 void	write_all(char *str, t_philo *philo);
 int		box_init(t_struct *box, int argc, char **argv);
 int		check_argv(int argc, char **argv);
 void	check_and_exit(t_struct *box);
+int		choose_fork_a(int left, int right);
+int		choose_fork_b(int right, int left);
+int		check_1(t_philo *philo);
+int		check_loop(t_philo *philo);
 
 #endif
